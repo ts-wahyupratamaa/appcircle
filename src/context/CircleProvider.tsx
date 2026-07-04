@@ -204,6 +204,10 @@ export function CircleProvider({ children }: { children: ReactNode }) {
 
   const runSync = useCallback(async () => {
     const result = await syncPendingPosts();
+    // cloud: onSnapshot yang pegang state — jangan timpa pakai AsyncStorage (itu yang "reset" feed)
+    if (isCloudBackend()) {
+      return;
+    }
     setPosts(result.posts);
     setCircleFeed(result.circleFeed);
     setChats(result.chats);

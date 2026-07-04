@@ -25,6 +25,22 @@ function useRegisterServiceWorker() {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // ponytail: SW opsional — app tetap jalan tanpa offline shell
     });
+    // ambil update SW saat app dibuka dari Home Screen
+    navigator.serviceWorker.ready.then((reg) => {
+      void reg.update();
+    });
+    const onControllerChange = () => {
+      // SW baru aktif — reload sekali biar bundle terbaru
+      if (sessionStorage.getItem('innerly-sw-reloaded')) {
+        return;
+      }
+      sessionStorage.setItem('innerly-sw-reloaded', '1');
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
   }, []);
 }
 
