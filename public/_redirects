@@ -1,0 +1,4 @@
+# Hanya route app — jangan catch-all (nanti font/js jadi HTML → blank)
+/home /home.html 200
+/circle-chat /circle-chat.html 200
+/wish-detail /wish-detail.html 200

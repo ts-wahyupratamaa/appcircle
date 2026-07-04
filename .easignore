@@ -1,0 +1,13 @@
+# Parent home-directory git is not this app — keep EAS archive scoped
+node_modules/
+.expo/
+dist/
+web-build/
+.git/
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+.DS_Store

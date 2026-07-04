@@ -1,0 +1,14 @@
+{
+  "name": "innerly-api",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "typescript": "~5.9.2",
+    "wrangler": "^4.14.0"
+  }
+}

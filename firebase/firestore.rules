@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ponytail: circle privat 5 teman — ketatkan sebelum publik
+    match /accounts/{accountId} {
+      allow read, write: if true;
+    }
+    match /circles/{circleId} {
+      allow read, write: if true;
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
