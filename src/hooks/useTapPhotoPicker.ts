@@ -15,7 +15,8 @@ const CAMERA_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
   allowsEditing: false,
   quality: 0.85,
-  cameraType: ImagePicker.CameraType.front,
+  // kamera belakang — arah foto = arah kamera (tidak mirror selfie)
+  cameraType: ImagePicker.CameraType.back,
 };
 
 type Options = {

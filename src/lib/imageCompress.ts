@@ -1,4 +1,4 @@
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { FlipType, manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 export type ImagePreset = 'feed' | 'avatar' | 'chat';
 
@@ -19,6 +19,11 @@ export function presetFromScope(scope: string): ImagePreset {
   return 'feed';
 }
 
+export type CompressOptions = {
+  /** Front camera sering mirror — flip biar sesuai arah kamera asli */
+  flipHorizontal?: boolean;
+};
+
 /**
  * Foto → WebP resize sebelum upload R2.
  * Bukan SVG (vector, bukan foto). Tidak bisa "balik HD" dari file kecil —
@@ -27,14 +32,34 @@ export function presetFromScope(scope: string): ImagePreset {
 export async function compressForUpload(
   localUri: string,
   preset: ImagePreset = 'feed',
+  options: CompressOptions = {},
 ): Promise<string> {
   const { maxWidth, quality } = PRESETS[preset];
-  const result = await manipulateAsync(
-    localUri,
-    [{ resize: { width: maxWidth } }],
-    { compress: quality, format: SaveFormat.WEBP },
-  );
-  return result.uri;
+  const actions: Parameters<typeof manipulateAsync>[1] = [{ resize: { width: maxWidth } }];
+  if (options.flipHorizontal) {
+    actions.unshift({ flip: FlipType.Horizontal });
+  }
+
+  try {
+    const result = await manipulateAsync(localUri, actions, {
+      compress: quality,
+      format: SaveFormat.WEBP,
+    });
+    return result.uri;
+  } catch (error) {
+    console.warn('[innerly] compress failed, using original', error);
+    if (options.flipHorizontal) {
+      try {
+        const flipped = await manipulateAsync(localUri, [{ flip: FlipType.Horizontal }], {
+          compress: 1,
+        });
+        return flipped.uri;
+      } catch {
+        // fall through
+      }
+    }
+    return localUri;
+  }
 }
 
 export const UPLOAD_FORMAT = 'webp' as const;

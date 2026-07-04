@@ -3,10 +3,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { API_URL, hasMediaApi } from '../constants/api';
 import {
   compressForUpload,
+  CompressOptions,
   presetFromScope,
   UPLOAD_FORMAT,
   UPLOAD_MIME,
 } from './imageCompress';
+import { isCloudBackend } from './cloudMode';
 
 const LOCAL_DIRS: Record<string, string> = {
   feed: 'feed-images',
@@ -16,7 +18,7 @@ const LOCAL_DIRS: Record<string, string> = {
 
 async function copyLocal(localUri: string, dirName: string): Promise<string> {
   const base = FileSystem.documentDirectory;
-  // web / PWA: tidak ada documentDirectory — R2 harusnya sudah dipakai; fallback blob URI
+  // web / PWA: tidak ada documentDirectory — cloud wajib
   if (!base) {
     return localUri;
   }
@@ -29,11 +31,14 @@ async function copyLocal(localUri: string, dirName: string): Promise<string> {
 
 async function uploadToR2(localUri: string, scope: string): Promise<string> {
   const blob = await fetch(localUri).then((res) => res.blob());
+  if (!blob.size) {
+    throw new Error('upload empty blob');
+  }
 
   const res = await fetch(`${API_URL}/upload`, {
     method: 'POST',
     headers: {
-      'Content-Type': UPLOAD_MIME,
+      'Content-Type': blob.type || UPLOAD_MIME,
       'X-Scope': scope,
       'X-Ext': UPLOAD_FORMAT,
     },
@@ -41,7 +46,8 @@ async function uploadToR2(localUri: string, scope: string): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new Error(`upload ${res.status}`);
+    const body = await res.text().catch(() => '');
+    throw new Error(`upload ${res.status} ${body}`.trim());
   }
 
   const data = (await res.json()) as { url?: string };
@@ -51,17 +57,21 @@ async function uploadToR2(localUri: string, scope: string): Promise<string> {
   return data.url;
 }
 
-/** Kompres WebP → R2 (atau lokal). expo-image render URL langsung — tampil tajam di layar. */
-export async function persistMediaImage(localUri: string, scope: string): Promise<string> {
+/** Kompres WebP → R2 (cloud wajib kalau backend cloud). */
+export async function persistMediaImage(
+  localUri: string,
+  scope: string,
+  options: CompressOptions = {},
+): Promise<string> {
   const preset = presetFromScope(scope);
-  const compressedUri = await compressForUpload(localUri, preset);
+  const compressedUri = await compressForUpload(localUri, preset, options);
 
   if (hasMediaApi()) {
-    try {
-      return await uploadToR2(compressedUri, scope);
-    } catch {
-      // ponytail: worker down / offline → lokal
-    }
+    return uploadToR2(compressedUri, scope);
+  }
+
+  if (isCloudBackend()) {
+    throw new Error('Media API URL belum di-set');
   }
 
   const dir = scope.startsWith('avatars/')

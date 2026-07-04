@@ -1,5 +1,5 @@
 /* ponytail: cache shell saja — data tetap Firestore/R2 live */
-const CACHE = 'innerly-shell-v1';
+const CACHE = 'innerly-shell-v2';
 const PRECACHE = ['/', '/manifest.webmanifest', '/favicon.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

@@ -58,12 +58,14 @@ export async function saveProfile(accountId: string, profile: UserProfile): Prom
   const payload = JSON.stringify({ ...profile, username: accountId });
 
   if (isCloudBackend()) {
+    await pushProfile(accountId, profile);
+    // mirror lokal biar reload cepat
     try {
-      await pushProfile(accountId, profile);
-      return;
-    } catch (error) {
-      console.warn('[innerly] pushProfile failed, saving local', error);
+      await AsyncStorage.setItem(profileKey(accountId), payload);
+    } catch {
+      // web storage penuh — cloud sudah cukup
     }
+    return;
   }
 
   await AsyncStorage.setItem(profileKey(accountId), payload);

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Alert } from 'react-native';
 
 import { findAccountIdByPin } from '../lib/accountPinStorage';
 import { isCloudBackend } from '../lib/cloudMode';
@@ -356,34 +357,40 @@ export function CircleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const imageUri = localImageUri
-        ? await persistFeedImage(localImageUri, activeCircle.id)
-        : undefined;
+      try {
+        const imageUri = localImageUri
+          ? await persistFeedImage(localImageUri, activeCircle.id)
+          : undefined;
 
-      const post = createPostRecord(
-        {
-          circleId: activeCircle.id,
-          tag: activeCircle.tag,
-          caption,
-          imageUri,
-          authorId: profile.username,
-          authorName: profile.displayName,
-        },
-        posts.length,
-      );
+        const post = createPostRecord(
+          {
+            circleId: activeCircle.id,
+            tag: activeCircle.tag,
+            caption,
+            imageUri,
+            authorId: profile.username,
+            authorName: profile.displayName,
+          },
+          posts.length,
+        );
 
-      if (isCloudBackend()) {
-        try {
-          await pushPost(post);
-          setPosts((current) => upsertById(current, { ...post, synced: true }));
-          return;
-        } catch (error) {
-          console.warn('[innerly] pushPost failed, queueing', error);
+        setPosts((current) => upsertById(current, { ...post, synced: false }));
+
+        if (isCloudBackend()) {
+          try {
+            await pushPost(post);
+            setPosts((current) => upsertById(current, { ...post, synced: true }));
+            return;
+          } catch (error) {
+            console.warn('[innerly] pushPost failed, queueing', error);
+          }
         }
-      }
 
-      await queuePost(post);
-      setPosts((current) => upsertById(current, post));
+        await queuePost(post);
+      } catch (error) {
+        console.warn('[innerly] createPost failed', error);
+        Alert.alert('Gagal post', 'Cek internet lalu coba lagi.');
+      }
     },
     [activeCircle, profile, posts.length],
   );
@@ -424,30 +431,39 @@ export function CircleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const imageUri = await persistFeedImage(localUri, activeCircle.id);
-      const item = createCircleFeedItem(
-        {
-          circleId: activeCircle.id,
-          tag: activeCircle.tag,
-          imageUri,
-          authorId: profile.username,
-          authorName: profile.displayName,
-        },
-        circleFeed.length,
-      );
+      try {
+        const imageUri = await persistFeedImage(localUri, activeCircle.id);
+        const item = createCircleFeedItem(
+          {
+            circleId: activeCircle.id,
+            tag: activeCircle.tag,
+            imageUri,
+            authorId: profile.username,
+            authorName: profile.displayName,
+          },
+          circleFeed.length,
+        );
 
-      if (isCloudBackend()) {
-        try {
-          await pushFeedItem(item);
-          setCircleFeed((current) => upsertById(current, { ...item, synced: true }));
+        // tampilkan dulu biar tidak hilang saat snapshot lag
+        setCircleFeed((current) => upsertById(current, { ...item, synced: false }));
+
+        if (isCloudBackend()) {
+          try {
+            await pushFeedItem(item);
+            setCircleFeed((current) => upsertById(current, { ...item, synced: true }));
+          } catch (error) {
+            console.warn('[innerly] pushFeedItem failed, queueing', error);
+            await queueCircleFeedItem(item);
+            Alert.alert('Tersimpan lokal', 'Foto muncul di HP ini; sync cloud gagal — coba lagi nanti.');
+          }
           return;
-        } catch (error) {
-          console.warn('[innerly] pushFeedItem failed, queueing', error);
         }
-      }
 
-      await queueCircleFeedItem(item);
-      setCircleFeed((current) => upsertById(current, item));
+        await queueCircleFeedItem(item);
+      } catch (error) {
+        console.warn('[innerly] addCircleFeedPhoto failed', error);
+        Alert.alert('Gagal upload', 'Foto circle feed tidak tersimpan. Cek internet lalu coba lagi.');
+      }
     },
     [activeCircle, profile, circleFeed.length],
   );
