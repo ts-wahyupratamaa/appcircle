@@ -64,8 +64,6 @@ import {
   loadChats,
   queueChatMessage,
 } from '../lib/chatStorage';
-import { isCircleFeedExpired } from '../constants/feedTtl';
-import { filterActiveCircleFeed, purgeExpiredCircleFeed } from '../lib/feedExpiry';
 import { clearLocalFeedCacheOnce } from '../lib/migrateLocalFeed';
 import { countAllPendingSync, syncPendingPosts } from '../lib/syncService';
 import { ChatMessage, CircleFeedItem, PostComment, StoredPost } from '../types/circle';
@@ -152,7 +150,7 @@ async function loadLocalFeed() {
     return {
       posts: allPosts.filter((p) => !p.synced),
       comments: [] as PostComment[],
-      circleFeed: filterActiveCircleFeed(allFeed.filter((f) => !f.synced)),
+      circleFeed: allFeed.filter((f) => !f.synced),
       chats: allChats.filter((c) => c.synced === false),
     };
   }
@@ -304,31 +302,9 @@ export function CircleProvider({ children }: { children: ReactNode }) {
     if (!activeCircle) {
       return [];
     }
-    // terbaru di kiri (index 0)
-    return sortByNewest(
-      filterActiveCircleFeed(filterCircleFeedByCircle(circleFeed, activeCircle.id)),
-    );
+    // terbaru di kiri (index 0) — tanpa batas waktu
+    return sortByNewest(filterCircleFeedByCircle(circleFeed, activeCircle.id));
   }, [circleFeed, activeCircle]);
-
-  useEffect(() => {
-    if (!activeCircle || !hasFirebase()) {
-      return;
-    }
-    const circleId = activeCircle.id;
-    const tick = () => {
-      setCircleFeed((prev) => {
-        const inCircle = prev.filter((item) => item.circleId === circleId);
-        const expired = inCircle.filter((item) => isCircleFeedExpired(item.createdAt));
-        if (expired.length > 0) {
-          void purgeExpiredCircleFeed(circleId, expired);
-        }
-        return filterActiveCircleFeed(prev);
-      });
-    };
-    tick();
-    const id = setInterval(tick, 60_000);
-    return () => clearInterval(id);
-  }, [activeCircle?.id]);
 
   const chatMessages = useMemo(() => {
     if (!activeCircle) {

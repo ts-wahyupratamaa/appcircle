@@ -65,7 +65,6 @@ export async function ensureSeedCircleFeed(): Promise<CircleFeedItem[]> {
   const items: CircleFeedItem[] = SEED_FEED.map((item, index) => ({
     ...item,
     id: `feed-seed-${index}`,
-    // keep seeds inside 24h TTL window
     createdAt: new Date(now - index * 3_600_000).toISOString(),
     synced: true,
   }));

@@ -10,8 +10,6 @@ import {
 } from 'firebase/firestore';
 
 import { CircleFeedItem, ChatMessage, PostComment, StoredPost } from '../types/circle';
-import { isCircleFeedExpired } from '../constants/feedTtl';
-import { filterActiveCircleFeed, purgeExpiredCircleFeed } from './feedExpiry';
 import { getDb, hasFirebase } from './firebase';
 
 function tsToIso(value: unknown): string {
@@ -108,18 +106,10 @@ export function watchFeed(
   circleId: string,
   onData: (items: CircleFeedItem[]) => void,
 ): () => void {
-  const emit = (items: CircleFeedItem[]) => {
-    const expired = items.filter((item) => isCircleFeedExpired(item.createdAt));
-    if (expired.length > 0) {
-      void purgeExpiredCircleFeed(circleId, expired);
-    }
-    onData(filterActiveCircleFeed(items));
-  };
-
   const q = query(feedRef(circleId), orderBy('createdAt', 'desc'));
   let unsub = onSnapshot(
     q,
-    (snap) => emit(mapFeedDocs(circleId, snap.docs)),
+    (snap) => onData(mapFeedDocs(circleId, snap.docs)),
     (error) => {
       console.warn('[innerly] watchFeed orderBy failed, fallback', error);
       unsub();
@@ -127,7 +117,7 @@ export function watchFeed(
         const items = mapFeedDocs(circleId, snap.docs).sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
-        emit(items);
+        onData(items);
       });
     },
   );

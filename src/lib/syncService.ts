@@ -6,7 +6,6 @@ import {
 } from './circleFeedStorage';
 import { loadChats, markChatsSynced } from './chatStorage';
 import { pushChatMessage, pushFeedItem, pushPost } from './firebaseDb';
-import { filterActiveCircleFeed, purgeExpiredCircleFeed } from './feedExpiry';
 import {
   countPendingSync,
   loadPosts,
@@ -29,7 +28,7 @@ async function pushPendingToCloud(): Promise<SyncResult> {
   ]);
 
   const pendingPosts = posts.filter((post) => !post.synced);
-  const pendingFeed = filterActiveCircleFeed(circleFeed.filter((item) => !item.synced));
+  const pendingFeed = circleFeed.filter((item) => !item.synced);
   const pendingChats = chats.filter((chat) => chat.synced === false);
 
   for (const post of pendingPosts) {
@@ -40,14 +39,6 @@ async function pushPendingToCloud(): Promise<SyncResult> {
   }
   for (const chat of pendingChats) {
     await pushChatMessage(chat);
-  }
-
-  const expiredFeed = circleFeed.filter((item) => !filterActiveCircleFeed([item]).length);
-  if (expiredFeed.length > 0) {
-    const circleId = expiredFeed[0]?.circleId;
-    if (circleId) {
-      await purgeExpiredCircleFeed(circleId, expiredFeed);
-    }
   }
 
   const syncedCount = pendingPosts.length + pendingFeed.length + pendingChats.length;
