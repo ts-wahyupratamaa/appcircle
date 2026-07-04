@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  interpolateColor,
-  SharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  ListRenderItem,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { useTapPhotoPicker } from '../hooks/useTapPhotoPicker';
 import { CircleFeedItem } from '../types/circle';
@@ -17,9 +16,6 @@ import { font } from '../theme/text';
 import { PostCard } from './PostCard';
 
 const BLANK_ID = '__circle-feed-blank__';
-const DOT_H = 6;
-const DOT_IDLE = 6;
-const DOT_ACTIVE = 18;
 
 type StripRow = CircleFeedItem | { id: typeof BLANK_ID };
 
@@ -33,36 +29,16 @@ function isBlank(row: StripRow): row is { id: typeof BLANK_ID } {
   return row.id === BLANK_ID;
 }
 
-function FeedDot({ index, step, scrollX }: { index: number; step: number; scrollX: SharedValue<number> }) {
-  const style = useAnimatedStyle(() => {
-    const inputRange = [(index - 1) * step, index * step, (index + 1) * step];
-    return {
-      width: interpolate(scrollX.value, inputRange, [DOT_IDLE, DOT_ACTIVE, DOT_IDLE], Extrapolation.CLAMP),
-      height: DOT_H,
-      borderRadius: DOT_H / 2,
-      backgroundColor: interpolateColor(scrollX.value, inputRange, [
-        colors.dotInactive,
-        colors.dotActive,
-        colors.dotInactive,
-      ]),
-    };
-  });
-
-  return <Animated.View style={style} />;
-}
-
 export function CircleFeedStrip({ items = [], onAdd, disabled }: Props) {
   const [loading, setLoading] = useState(false);
-  const scrollX = useSharedValue(0);
+  const listRef = useRef<FlatList<StripRow>>(null);
 
   const cardW = wishCardWidth();
   const gap = layout.wishCardGap;
-  const step = cardW + gap;
 
-  const rows = useMemo<StripRow[]>(
-    () => [{ id: BLANK_ID }, ...items],
-    [items],
-  );
+  // blank kiri, lalu foto terbaru → terlama (items sudah newest-first dari provider)
+  const rows = useMemo<StripRow[]>(() => [{ id: BLANK_ID }, ...items], [items]);
+  const listKey = useMemo(() => rows.map((row) => row.id).join('|'), [rows]);
 
   const { onPress: handleBlankTap } = useTapPhotoPicker({
     disabled: disabled || !onAdd,
@@ -77,70 +53,66 @@ export function CircleFeedStrip({ items = [], onAdd, disabled }: Props) {
     },
   });
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollX.value = event.contentOffset.x;
-    },
-  });
+  // foto baru masuk — scroll ke kiri biar langsung kelihatan
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [items[0]?.id]);
+
+  const renderItem: ListRenderItem<StripRow> = ({ item }) => {
+    if (isBlank(item)) {
+      return (
+        <Pressable
+          style={[styles.blankCard, { width: cardW, marginRight: gap }]}
+          onPress={handleBlankTap}
+          disabled={disabled || loading}
+          testID="circle-feed-blank"
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Text style={styles.blankTitle}>Circle feed</Text>
+              <Text style={styles.blankHint}>Tap buat upload foto</Text>
+            </>
+          )}
+        </Pressable>
+      );
+    }
+
+    return (
+      <View style={{ marginRight: gap }}>
+        <PostCard
+          caption=""
+          tag={item.tag}
+          cardColor={item.cardColor}
+          illustration={item.illustration}
+          imageUri={item.imageUri}
+          pending={!item.synced}
+          width={cardW}
+          showCaption={false}
+        />
+      </View>
+    );
+  };
 
   return (
     <View style={styles.wrap}>
-      <Animated.FlatList
+      <FlatList
+        ref={listRef}
+        key={listKey}
         data={rows}
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
+        extraData={listKey}
         decelerationRate="fast"
-        snapToInterval={step}
+        snapToInterval={cardW + gap}
         snapToAlignment="start"
         disableIntervalMomentum
         contentContainerStyle={styles.row}
         testID="circle-feed-strip"
-        ItemSeparatorComponent={() => <View style={{ width: gap }} />}
-        renderItem={({ item }) => {
-          if (isBlank(item)) {
-            return (
-              <Pressable
-                style={[styles.blankCard, { width: cardW }]}
-                onPress={handleBlankTap}
-                disabled={disabled || loading}
-                testID="circle-feed-blank"
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <>
-                    <Text style={styles.blankTitle}>Circle feed</Text>
-                    <Text style={styles.blankHint}>Tap buat upload foto</Text>
-                  </>
-                )}
-              </Pressable>
-            );
-          }
-
-          return (
-            <PostCard
-              caption=""
-              tag={item.tag}
-              cardColor={item.cardColor}
-              illustration={item.illustration}
-              imageUri={item.imageUri}
-              pending={!item.synced}
-              width={cardW}
-              showCaption={false}
-            />
-          );
-        }}
+        renderItem={renderItem}
       />
-      {rows.length > 1 ? (
-        <View style={styles.dots}>
-          {rows.map((_, i) => (
-            <FeedDot key={i} index={i} step={step} scrollX={scrollX} />
-          ))}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -169,12 +141,5 @@ const styles = StyleSheet.create({
   blankHint: {
     ...font('regular', 12, colors.textSecondary),
     marginTop: 2,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: DOT_H,
   },
 });

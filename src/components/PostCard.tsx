@@ -61,7 +61,14 @@ export function PostCard({
           </View>
         ) : null}
         {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.photo} contentFit="cover" />
+          <Image
+            key={imageUri}
+            source={{ uri: imageUri }}
+            style={styles.photo}
+            contentFit="cover"
+            recyclingKey={imageUri}
+            cachePolicy="memory-disk"
+          />
         ) : (
           <Illustration />
         )}

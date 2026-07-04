@@ -183,6 +183,7 @@ export async function pushChatMessage(message: ChatMessage): Promise<void> {
 }
 
 export async function pushFeedItem(item: CircleFeedItem): Promise<void> {
+  const createdAtMs = new Date(item.createdAt).getTime();
   await setDoc(doc(feedRef(item.circleId), item.id), {
     tag: item.tag,
     imageUri: item.imageUri ?? null,
@@ -191,6 +192,7 @@ export async function pushFeedItem(item: CircleFeedItem): Promise<void> {
     authorId: item.authorId,
     authorName: item.authorName,
     createdAt: item.createdAt,
+    createdAtMs: Number.isNaN(createdAtMs) ? Date.now() : createdAtMs,
   });
 }
 

@@ -95,6 +95,14 @@ type CircleContextValue = {
 
 const CircleContext = createContext<CircleContextValue | null>(null);
 
+function sortByNewest<T extends { createdAt: string }>(items: T[]): T[] {
+  return items.slice().sort((a, b) => {
+    const tb = new Date(b.createdAt).getTime();
+    const ta = new Date(a.createdAt).getTime();
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
+}
+
 function mergeRemoteWithPending<T extends { id: string; circleId: string; synced?: boolean }>(
   remote: T[],
   prev: T[],
@@ -296,8 +304,9 @@ export function CircleProvider({ children }: { children: ReactNode }) {
     if (!activeCircle) {
       return [];
     }
-    return filterActiveCircleFeed(filterCircleFeedByCircle(circleFeed, activeCircle.id)).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    // terbaru di kiri (index 0)
+    return sortByNewest(
+      filterActiveCircleFeed(filterCircleFeedByCircle(circleFeed, activeCircle.id)),
     );
   }, [circleFeed, activeCircle]);
 

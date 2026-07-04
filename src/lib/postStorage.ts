@@ -143,7 +143,10 @@ export async function markPostsSynced(ids: string[]): Promise<StoredPost[]> {
 }
 
 export function filterPostsByCircle(posts: StoredPost[], circleId: string): StoredPost[] {
-  return posts.filter((post) => post.circleId === circleId);
+  return posts
+    .filter((post) => post.circleId === circleId)
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export function filterPostsByJoinedCircles(

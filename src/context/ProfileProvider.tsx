@@ -14,7 +14,7 @@ import {
   setAccountPinOverride,
 } from '../lib/accountPinStorage';
 import { isCloudBackend } from '../lib/cloudMode';
-import { watchAllProfiles } from '../lib/firebaseProfiles';
+import { pushProfile, watchAllProfiles } from '../lib/firebaseProfiles';
 import {
   defaultProfileForAccount,
   loadProfile,
@@ -61,9 +61,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return watchAllProfiles(setProfiles);
   }, []);
 
+  /** Live profile by account id — milik sendiri dari state lokal (setelah edit), orang lain dari Firestore watch */
   const profileFor = useCallback(
     (id: string): UserProfile => {
-      if (id === accountId) {
+      if (id === accountId || id === profile.username) {
         return profile;
       }
       return profiles[id] ?? defaultProfileForAccount(id);
@@ -73,9 +74,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const signInAs = useCallback(async (nextAccountId: string) => {
     const loaded = await loadProfile(nextAccountId);
+    const next: UserProfile = { ...loaded, username: nextAccountId };
     setAccountId(nextAccountId);
-    setProfile(loaded);
+    setProfile(next);
+    setProfiles((current) => ({ ...current, [nextAccountId]: next }));
     setReady(true);
+    // pastikan doc accounts/{id} ada di Firestore biar teman lihat nama/foto
+    if (isCloudBackend()) {
+      void pushProfile(nextAccountId, next).catch((error) => {
+        console.warn('[innerly] ensure profile failed', error);
+      });
+    }
   }, []);
 
   const signOut = useCallback(() => {
@@ -95,19 +104,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         greeting: patch.greeting.trim() || fallback.greeting,
         avatarUri: patch.avatarUri !== undefined ? patch.avatarUri : profile.avatarUri ?? null,
       };
-      await saveProfile(accountId, next);
+      // update UI dulu — jangan ditimpa snapshot lama
       setProfile(next);
       setProfiles((current) => ({ ...current, [accountId]: next }));
+      await saveProfile(accountId, next);
     },
     [accountId, profile],
   );
-
-  useEffect(() => {
-    if (!accountId || !profiles[accountId]) {
-      return;
-    }
-    setProfile(profiles[accountId]);
-  }, [accountId, profiles]);
 
   const verifyAccountPin = useCallback(
     async (pin: string) => {
