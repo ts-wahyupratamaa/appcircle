@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatBubble, ChatInputBar, ChatTypingIndicator } from '../src/components/ChatBubble';
 import { CircleChatIntro } from '../src/components/CircleChatIntro';
 import { CircleInfoSheet } from '../src/components/CircleInfoSheet';
+import { MainBottomNav } from '../src/components/MainBottomNav';
+import { magicNavBottomInset } from '../src/components/BottomNav';
 import { useCircle } from '../src/context/CircleProvider';
 import { useProfile } from '../src/context/ProfileProvider';
 import { colors, layout, shadows, spacing } from '../src/theme';
@@ -114,7 +116,8 @@ export default function CircleChatScreen() {
     }
   };
 
-  const composerBottom = keyboardH > 0 ? keyboardH : insets.bottom;
+  const navInset = magicNavBottomInset(insets.bottom);
+  const composerBottom = keyboardH > 0 ? keyboardH : navInset;
   const listBottomPad = COMPOSER_H + composerBottom + spacing.md;
 
   if (!ready || !activeCircle) {
@@ -195,6 +198,8 @@ export default function CircleChatScreen() {
         onSaveName={updateCircleName}
         onSaveDescription={updateCircleDescription}
       />
+
+      {keyboardH === 0 ? <MainBottomNav /> : null}
     </View>
   );
 }

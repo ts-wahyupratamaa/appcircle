@@ -12,59 +12,53 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadows, spacing } from '../theme';
 import { font } from '../theme/text';
 
-export type NavTab = 'feed' | 'chat';
+export type NavTab = 'feed' | 'budget' | 'chat';
 
 type Props = {
   active?: NavTab;
   onFeedPress?: () => void;
+  onBudgetPress?: () => void;
   onChatPress?: () => void;
 };
-
-const TABS: { key: NavTab; icon: keyof typeof Feather.glyphMap; label: string }[] = [
-  { key: 'feed', icon: 'home', label: 'Feed' },
-  { key: 'chat', icon: 'message-circle', label: 'Chat' },
-];
 
 const BAR_H = 62;
 const FLOAT_SIDE = spacing.base;
 const FLOAT_GAP = spacing.sm;
 const INDICATOR_INSET = 5;
+const CENTER_SIZE = 52;
 
 const SLIDE_SPRING = { damping: 20, stiffness: 220, mass: 0.75 };
 
 /** Tinggi area yang ditempati nav (float + bar) untuk padding konten */
-export const NAV_CONTENT_HEIGHT = BAR_H + FLOAT_GAP + spacing.sm;
+export const NAV_CONTENT_HEIGHT = BAR_H + FLOAT_GAP + spacing.sm + 12;
 
 export function magicNavBottomInset(insetBottom: number): number {
   return NAV_CONTENT_HEIGHT + Math.max(insetBottom, spacing.xs) + FLOAT_GAP;
 }
 
 function tabIndex(tab: NavTab) {
-  return TABS.findIndex((item) => item.key === tab);
+  if (tab === 'feed') return 0;
+  if (tab === 'budget') return 1;
+  return 2;
 }
 
 type TabItemProps = {
-  tab: (typeof TABS)[number];
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
   isActive: boolean;
   onPress: () => void;
   disabled: boolean;
 };
 
-function TabItem({ tab, isActive, onPress, disabled }: TabItemProps) {
+function SideTabItem({ icon, label, isActive, onPress, disabled }: TabItemProps) {
   return (
-    <Pressable
-      style={styles.tab}
-      onPress={onPress}
-      disabled={disabled}
-      testID={`nav-${tab.key}`}
-      hitSlop={6}
-    >
+    <Pressable style={styles.sideTab} onPress={onPress} disabled={disabled} hitSlop={6}>
       <Feather
-        name={tab.icon}
+        name={icon}
         size={22}
         color={isActive ? colors.primary : colors.textSecondary}
       />
-      <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+      <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -72,6 +66,7 @@ function TabItem({ tab, isActive, onPress, disabled }: TabItemProps) {
 export function BottomNav({
   active = 'feed',
   onFeedPress,
+  onBudgetPress,
   onChatPress,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -82,25 +77,19 @@ export function BottomNav({
 
   const runAction = useCallback(
     (tab: NavTab) => {
-      if (tab === 'feed') {
-        onFeedPress?.();
-      } else {
-        onChatPress?.();
-      }
+      if (tab === 'feed') onFeedPress?.();
+      else if (tab === 'budget') onBudgetPress?.();
+      else onChatPress?.();
     },
-    [onChatPress, onFeedPress],
+    [onBudgetPress, onChatPress, onFeedPress],
   );
 
   const springTo = useCallback(
     (tab: NavTab, onDone?: () => void) => {
       setLocked(true);
       activeIndex.value = withSpring(tabIndex(tab), SLIDE_SPRING, (finished) => {
-        if (!finished) {
-          return;
-        }
-        if (onDone) {
-          runOnJS(onDone)();
-        }
+        if (!finished) return;
+        if (onDone) runOnJS(onDone)();
         runOnJS(setLocked)(false);
       });
     },
@@ -117,9 +106,7 @@ export function BottomNav({
 
   const onBarLayout = (event: LayoutChangeEvent) => {
     const w = event.nativeEvent.layout.width;
-    if (w > 0) {
-      tabWidth.value = w / TABS.length;
-    }
+    if (w > 0) tabWidth.value = w / 3;
   };
 
   const indicatorStyle = useAnimatedStyle(() => {
@@ -131,9 +118,7 @@ export function BottomNav({
   });
 
   const handlePress = (tab: NavTab) => {
-    if (locked) {
-      return;
-    }
+    if (locked) return;
     if (tab === active) {
       runAction(tab);
       return;
@@ -143,6 +128,7 @@ export function BottomNav({
   };
 
   const safeBottom = Math.max(insets.bottom, spacing.xs);
+  const budgetActive = active === 'budget';
 
   return (
     <View
@@ -152,15 +138,36 @@ export function BottomNav({
       <View style={styles.shell}>
         <View style={styles.bar} onLayout={onBarLayout}>
           <Animated.View style={[styles.indicator, indicatorStyle]} pointerEvents="none" />
-          {TABS.map((tab) => (
-            <TabItem
-              key={tab.key}
-              tab={tab}
-              isActive={active === tab.key}
+
+          <SideTabItem
+            icon="home"
+            label="feed"
+            isActive={active === 'feed'}
+            disabled={locked}
+            onPress={() => handlePress('feed')}
+          />
+
+          <View style={styles.centerSlot}>
+            <Pressable
+              style={[styles.centerBtn, budgetActive && styles.centerBtnActive]}
+              onPress={() => handlePress('budget')}
               disabled={locked}
-              onPress={() => handlePress(tab.key)}
-            />
-          ))}
+              testID="nav-budget"
+            >
+              <Text style={styles.centerEmoji}>💸</Text>
+            </Pressable>
+            <Text style={[styles.centerLabel, budgetActive && styles.centerLabelActive]}>
+              duit
+            </Text>
+          </View>
+
+          <SideTabItem
+            icon="message-circle"
+            label="chat"
+            isActive={active === 'chat'}
+            disabled={locked}
+            onPress={() => handlePress('chat')}
+          />
         </View>
       </View>
     </View>
@@ -186,8 +193,9 @@ const styles = StyleSheet.create({
   bar: {
     height: BAR_H,
     flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: radius.pill,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   indicator: {
     position: 'absolute',
@@ -196,7 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.primaryMuted,
   },
-  tab: {
+  sideTab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -206,8 +214,43 @@ const styles = StyleSheet.create({
   tabLabel: {
     ...font('medium', 11, colors.textSecondary),
     letterSpacing: 0.2,
+    textTransform: 'lowercase',
   },
   tabLabelActive: {
     ...font('semibold', 11, colors.primary),
+  },
+  centerSlot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    zIndex: 2,
+    marginTop: -18,
+    gap: 2,
+  },
+  centerBtn: {
+    width: CENTER_SIZE,
+    height: CENTER_SIZE,
+    borderRadius: CENTER_SIZE / 2,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.white,
+    ...shadows.fab,
+  },
+  centerBtnActive: {
+    backgroundColor: colors.black,
+    transform: [{ scale: 1.06 }],
+  },
+  centerEmoji: {
+    fontSize: 22,
+  },
+  centerLabel: {
+    ...font('bold', 10, colors.textSecondary),
+    textTransform: 'lowercase',
+    letterSpacing: 0.3,
+  },
+  centerLabelActive: {
+    ...font('bold', 10, colors.primary),
   },
 });

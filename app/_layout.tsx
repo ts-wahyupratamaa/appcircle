@@ -14,6 +14,7 @@ import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CircleProvider } from '../src/context/CircleProvider';
+import { BudgetProvider } from '../src/context/BudgetProvider';
 import { ProfileProvider } from '../src/context/ProfileProvider';
 import { ThemeProvider } from '../src/context/ThemeProvider';
 
@@ -65,12 +66,15 @@ export default function RootLayout() {
       <ThemeProvider>
         <ProfileProvider>
           <CircleProvider>
+            <BudgetProvider>
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="home" />
+              <Stack.Screen name="budget" />
               <Stack.Screen name="circle-chat" />
               <Stack.Screen name="wish-detail" />
             </Stack>
+            </BudgetProvider>
           </CircleProvider>
         </ProfileProvider>
       </ThemeProvider>

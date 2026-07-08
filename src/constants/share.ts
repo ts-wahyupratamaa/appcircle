@@ -25,7 +25,7 @@ export const FRIEND_SHARE = {
   circlePin: HATERS_ASIA.pin,
   /** PWA — primary share (Android + iPhone, laptop boleh mati) */
   pwaUrl: 'https://innerly-5nx.pages.dev',
-  apkUrl: 'https://expo.dev/accounts/wahyupratama/projects/instaintrov/builds/49504fd0-2b4a-4cfb-8bc4-8e6c3d18b25a',
+  apkUrl: 'https://expo.dev/accounts/wahyupratama/projects/instaintrov/builds/59804bb4-6d23-4b49-96ac-897fdc65f19a',
   accountPins: ACCOUNTS.map((account) => ({
     id: account.id,
     pin: account.pin,

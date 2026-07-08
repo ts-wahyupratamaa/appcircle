@@ -3,7 +3,9 @@ import { usePathname, useRouter } from 'expo-router';
 import { BottomNav, NavTab } from './BottomNav';
 
 function tabFromPath(pathname: string): NavTab {
-  return pathname.includes('circle-chat') ? 'chat' : 'feed';
+  if (pathname.includes('circle-chat')) return 'chat';
+  if (pathname.includes('budget')) return 'budget';
+  return 'feed';
 }
 
 export function MainBottomNav() {
@@ -15,19 +17,19 @@ export function MainBottomNav() {
     <BottomNav
       active={active}
       onFeedPress={() => {
-        if (active === 'feed') {
-          return;
-        }
+        if (active === 'feed') return;
         if (router.canGoBack()) {
           router.back();
           return;
         }
         router.replace('/home');
       }}
+      onBudgetPress={() => {
+        if (active === 'budget') return;
+        router.push('/budget');
+      }}
       onChatPress={() => {
-        if (active === 'chat') {
-          return;
-        }
+        if (active === 'chat') return;
         router.push('/circle-chat');
       }}
     />
