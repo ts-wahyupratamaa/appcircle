@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { formatRupiah } from '../lib/formatRupiah';
-import { colors, radius, shadows, spacing } from '../theme';
-import { font } from '../theme/text';
-import { BudgetStatus } from '../types/budget';
+import { formatRupiah } from '../../lib/formatRupiah';
+import { colors, radius, shadows, spacing } from '../../theme';
+import { font } from '../../theme/text';
+import { BudgetStatus } from '../../types/budget';
 
 type Props = {
   title: string;
